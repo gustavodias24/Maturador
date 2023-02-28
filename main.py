@@ -1,6 +1,4 @@
-import openai
 from colorama import Fore, Style
-from decouple import config
 from random import shuffle
 from time import sleep
 from random import randint
@@ -42,52 +40,6 @@ class MatureBot:
         self.navAmigo2 = None
         self.nuAmigo1 = None
         self.nuAmigo2 = None
-
-
-    """
-        gerarNovaConversa
-        Retorna nada, apenas cria o arquivo da conversa.
-    """
-
-    def gerarNovaConversa(self):
-        model_engine = "text-davinci-003"
-        temperature = 0.6
-        openai.api_key = config("OPENAI_API_KEY")
-
-        prompts = [
-            "Entregue-me uma longa conversa entre 2 amigos (Amigo1 e Amigo2) aleatória",
-            "Entregue uma longa conversa entre 2 amigos (Amigo1 e Amigo2)",
-            "me entregue uma boa longa conversa entre 2 amigos (Amigo1 e Amigo2)"
-        ]
-
-        chat_prompt_template = prompts[randint(0, 2)]
-
-        response = openai.Completion.create(
-            engine=model_engine,
-            temperature=temperature,
-            prompt=chat_prompt_template,
-            max_tokens=2048,
-            n=1
-        )
-        self.responseAI = response["choices"][0]["text"].strip()
-        print(Fore.GREEN + 'Conversa criada!')
-
-    """
-        dividirConversa
-        Retorna nada, divdide a conversa entre os dois amigos e deleta arquivo conversa
-    """
-
-    def dividirConversa(self):
-
-        for linha in self.responseAI.split("\n"):
-
-            if "Amigo1:" in linha:
-                self.falaAmigo1.append(linha.replace("Amigo1:", ""))
-
-            if "Amigo2:" in linha:
-                self.falaAmigo2.append(linha.replace("Amigo2:", ""))
-
-        print(Fore.GREEN + "Conversas divididas")
 
     """
         utils
@@ -210,7 +162,9 @@ class MatureBot:
 
     def iniciarConversa(self):
         while True:
+
             shuffle(self.list_profiles)
+
             for amigo1 in self.list_profiles:
 
                 print(Style.BRIGHT + Fore.MAGENTA + amigo1)
