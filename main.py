@@ -1,4 +1,5 @@
 from colorama import Fore, Style
+from alright import WhatsApp
 from random import shuffle
 from time import sleep
 from random import randint
@@ -8,30 +9,30 @@ from selenium.common.exceptions import NoSuchElementException, StaleElementRefer
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 import os
+import json
+from SenderNewClientes import BotStart
 
 
 class MatureBot:
     def __init__(self):
         # Tempo de espera
-        self.TEMPO_MAX = 20
-        self.TEMPO_MIN = 5
+        self.TEMPO_MAX = 9
+        self.TEMPO_MIN = 2
 
         self.list_profiles = os.listdir(os.path.join(
             os.getcwd(), 'profiles'
         ))
 
         shuffle(self.list_profiles)
-        self.list_profiles.remove("profile1")
-        self.list_profiles.remove("profile2")
 
         self.list_receptor = os.listdir(os.path.join(
             os.getcwd(), 'profiles'
         ))
 
-        self.list_receptor.remove("profile1")
-        self.list_receptor.remove("profile2")
+        with open(os.path.join(os.getcwd(), 'conversas.json')) as file:
+            self.all_conversas = json.loads(file.read())
+            file.close()
 
-        self.path_conversa = os.path.join(os.getcwd(), "conversa.txt")
         self.responseAI = ""
         self.falaAmigo1 = []
         self.falaAmigo2 = []
@@ -40,6 +41,9 @@ class MatureBot:
         self.navAmigo2 = None
         self.nuAmigo1 = None
         self.nuAmigo2 = None
+
+        self.whatsAmigo1 = None
+        self.whatsAmigo2 = None
 
     """
         utils
@@ -60,18 +64,22 @@ class MatureBot:
                     sleep(2)
 
     def getNumero(self, nav):
-        elm = self.findXpath('//*[@id="app"]/div/div/div[3]/header/div[1]/div/img', nav)
-        sleep(1.3)
-        elm.click()
-        sleep(2.3)
+        while True:
+            try:
+                elm = self.findXpath('//*[@id="app"]/div/div/div[3]/header/div[1]/div/img', nav)
+                sleep(1.3)
+                elm.click()
+                sleep(2.3)
 
-        numero = ""
+                numero = ""
 
-        while numero == "":
-            numero = self.findXpath(
-                '//*[@id="app"]/div/div/div[2]/div[1]/span/div/span/div/div/div[2]/div[3]/div[3]/div[2]/div/div[1]',
-                nav).text
-        return numero
+                while numero == "":
+                    numero = self.findXpath(
+                        '//*[@id="app"]/div/div/div[2]/div[1]/span/div/span/div/div/div[2]/div[3]/div[3]/div[2]/div/div[1]',
+                        nav).text
+                return numero
+            except:
+                sleep(5)
 
     def amigo1(self):
         for fala in self.falaAmigo1:
@@ -79,17 +87,7 @@ class MatureBot:
             falaReal = fala.replace("\n", "")
             print(Fore.YELLOW + "amigo1:" + falaReal)
 
-            self.navAmigo1.get(f"https://web.whatsapp.com/send?phone={self.nuAmigo2}&text={falaReal}")
-            chat = self.findXpath('//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[1]/p',
-                                  self.navAmigo1)
-            while True:
-                try:
-                    chat.click()
-                    chat.send_keys(Keys.ENTER)
-                    break
-                except:
-                    print(Fore.RED + "Erro click no chat")
-                    sleep(2)
+            self.whatsAmigo1.send_message(falaReal)
 
             if len(self.falaAmigo1) > 0:
                 self.falaAmigo1.pop(0)
@@ -103,17 +101,7 @@ class MatureBot:
             falaReal = fala.replace("\n", "")
             print("amigo2:" + falaReal)
 
-            self.navAmigo2.get(f"https://web.whatsapp.com/send?phone={self.nuAmigo1}&text={falaReal}")
-            chat = self.findXpath('//*[@id="main"]/footer/div[1]/div/span[2]/div/div[2]/div[1]/div/div[1]/p',
-                                  self.navAmigo2)
-            while True:
-                try:
-                    chat.click()
-                    chat.send_keys(Keys.ENTER)
-                    break
-                except:
-                    print(Fore.RED + "Erro click no chat")
-                    sleep(2)
+            self.whatsAmigo2.send_message(falaReal)
 
             if len(self.falaAmigo2) > 0:
                 self.falaAmigo2.pop(0)
@@ -176,6 +164,9 @@ class MatureBot:
                     "wpp"
                 ))
                 if self.navAmigo1:
+
+                    self.whatsAmigo1 = WhatsApp(browser=self.navAmigo1)
+
                     self.navAmigo1.get("https://web.whatsapp.com/")
                     self.nuAmigo1 = self.formatar_number(self.getNumero(self.navAmigo1))
 
@@ -192,8 +183,15 @@ class MatureBot:
                             ))
 
                             if self.navAmigo2:
-                                self.gerarNovaConversa()
-                                self.dividirConversa()
+
+                                self.whatsAmigo2 = WhatsApp(browser=self.navAmigo2)
+
+                                shuffle(self.all_conversas)
+
+                                conversa_completa = self.all_conversas[0]
+
+                                self.falaAmigo1 = conversa_completa["Amigo1"]
+                                self.falaAmigo2 = conversa_completa["Amigo2"]
 
                                 self.navAmigo2.get("https://web.whatsapp.com/")
                                 self.nuAmigo2 = self.formatar_number(self.getNumero(self.navAmigo2))
@@ -201,12 +199,71 @@ class MatureBot:
                                 print(self.falaAmigo1)
                                 print(self.falaAmigo2)
 
+                                self.whatsAmigo2.find_user(self.nuAmigo1)
+                                self.whatsAmigo1.find_user(self.nuAmigo2)
+
                                 self.amigo1()
 
                                 self.navAmigo2.close()
+
+                                # enviar mensagem para um outro cliente
+                                RANGE = 2
+
+                                with open(os.path.join(os.getcwd(), 'contatos.txt')) as file:
+
+                                    allLines = file.read().split("\n")
+
+                                    try:
+                                        allLines.remove('')
+                                    except ValueError:
+                                        continue
+
+                                    if allLines:
+                                        numeros = allLines[0:RANGE]
+
+                                        with open(os.path.join(os.getcwd(), 'contatos.txt'), "w") as fileUpdate:
+                                            fileUpdate.writelines([l + "\n" for l in allLines[RANGE:]])
+
+                                        for numero in numeros:
+                                            BotStart(self.navAmigo1).senderMsg(numero)
+                                    else:
+                                        print(Fore.CYAN + "NÃO EXISTE MAIS NOVOS CONTATOS PARA ENVIAR!")
 
                                 limit += 1
                                 if limit >= 3:
                                     break
 
                 self.navAmigo1.close()
+
+    def criarProfile(self, nProfile):
+        dir_path = os.getcwd()
+        profile = os.path.join(dir_path, "profiles", "profile{}".format(nProfile), "wpp")
+        opt = ChromeOptions()
+        opt.add_argument(
+            r"--user-data-dir={}".format(profile))
+
+        nav = Chrome(driver_executable_path=ChromeDriverManager().install(), options=opt)
+        input(Fore.GREEN + "Profile criado!")
+        nav.close()
+
+
+if __name__ == "__main__":
+    while True:
+        try:
+            menu = int(input(
+                """
+                    Maturador de números
+                [ 1 ] Criar profile
+                [ 2 ] Iniciar maturação
+                
+                R =
+                """)
+            )
+        except:
+            print(Fore.RED + "error")
+            break
+
+        if menu == 2:
+            MatureBot().iniciarConversa()
+        else:
+            MatureBot().criarProfile(input(Fore.CYAN + "alias: "))
